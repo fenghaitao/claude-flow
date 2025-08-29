@@ -1,0 +1,10 @@
+# Minimal requirements for testing (without external dependencies)
+# For full functionality, use requirements.txt
+
+# Core dependencies (minimal set)
+click>=8.1.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# Optional: Rich for better output (comment out if not needed)
+# rich>=13.0.0
