@@ -17,7 +17,18 @@
 - [examples/claude-api-error-handling.ts](file://examples/claude-api-error-handling.ts)
 - [examples/prompt-copier-demo.ts](file://examples/prompt-copier-demo.ts)
 - [examples/git-checkpoint-demo.md](file://examples/git-checkpoint-demo.md)
+- [python-claude-flow/examples/basic_usage.py](file://python-claude-flow/examples/basic_usage.py) - *Added in recent commit*
+- [python-claude-flow/demo.py](file://python-claude-flow/demo.py) - *Added in recent commit*
+- [python-claude-flow/README.md](file://python-claude-flow/README.md) - *Updated in recent commit*
 </cite>
+
+## Update Summary
+**Changes Made**   
+- Added new section on Python implementation and usage
+- Updated introduction to reflect Python port availability
+- Enhanced Getting Started section with Python examples
+- Added references to new Python files and demo scripts
+- Updated document sources to include new Python implementation files
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -35,8 +46,11 @@ The **Claude-Flow** platform enables developers to create intelligent, multi-age
 
 The repository's `examples/` directory is structured to support learning and experimentation, with dedicated folders for configurations, workflows, demos, testing, swarm-created applications, and tutorials. While specific tutorial files are currently minimal, the existing examples provide a solid foundation for understanding system capabilities.
 
+With the recent addition of the Python implementation, users now have access to a comprehensive Python port of Claude-Flow, enabling integration with Python-based workflows and applications. The Python implementation includes full feature parity with the Node.js version, including the hive-mind agent coordination, event-driven architecture, and multi-tier memory system.
+
 **Section sources**
 - [examples/README.md](file://examples/README.md)
+- [python-claude-flow/README.md](file://python-claude-flow/README.md) - *Updated in recent commit*
 
 ## Getting Started with Claude-Flow
 
@@ -94,11 +108,98 @@ module.exports = () => "Hello World";
 
 This basic example can be extended to include more complex functionality as users become familiar with the system.
 
+### Python Implementation
+
+The Python port of Claude-Flow provides a comprehensive implementation with full feature parity. To get started with the Python version:
+
+```bash
+# Clone the repository
+git clone https://github.com/claude-flow/python-claude-flow.git
+cd python-claude-flow
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the basic usage example
+python examples/basic_usage.py
+```
+
+The `basic_usage.py` example demonstrates key components of the Python implementation:
+
+```python
+#!/usr/bin/env python3
+"""
+Basic usage example for Claude-Flow Python port
+"""
+
+import asyncio
+from claude_flow.core.config import config
+from claude_flow.core.logger import logger
+from claude_flow.core.event_bus import event_bus, EventType, publish_agent_event
+
+async def main():
+    # Configuration management
+    print(f"App Name: {config.app_name}")
+    print(f"Version: {config.version}")
+    print(f"Environment: {config.environment}")
+    
+    # Event bus system
+    await event_bus.start()
+    await publish_agent_event(
+        agent_id="example_agent_001",
+        event_type=EventType.AGENT_CREATED,
+        data={"name": "Example Agent", "type": "worker"}
+    )
+    
+    # MCP client integration
+    if config.mcp.enabled:
+        connected = await mcp_client.connect()
+        if connected:
+            tools = mcp_client.get_tools()
+            print(f"Found {len(tools)} MCP tools")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+The demo script provides a simplified demonstration of the core components:
+
+```python
+#!/usr/bin/env python3
+"""
+Claude-Flow Python Demo
+"""
+
+def demo_config():
+    from claude_flow.core.config_simple import config
+    print(f"App: {config.app_name} v{config.version}")
+    print(f"Base Directory: {config.base_dir}")
+    
+    # Feature flags
+    print(f"Swarm Coordination: {config.get_feature_flag('swarm_coordination')}")
+
+def demo_event_bus():
+    from claude_flow.core.event_bus_simple import event_bus, EventType
+    event_bus.start()
+    
+    def agent_event_handler(event):
+        print(f"Agent event: {event.type.value} - {event.data}")
+    
+    event_bus.subscribe(EventType.AGENT_CREATED, agent_event_handler)
+    event_bus.stop()
+
+if __name__ == "__main__":
+    demo_config()
+    demo_event_bus()
+```
+
 **Section sources**
 - [examples/01-configurations/README.md](file://examples/01-configurations/README.md)
 - [examples/hello-world.js](file://examples/hello-world.js)
 - [examples/quick-start.sh](file://examples/quick-start.sh)
 - [examples/batch-config-simple.json](file://examples/batch-config-simple.json)
+- [python-claude-flow/examples/basic_usage.py](file://python-claude-flow/examples/basic_usage.py) - *Added in recent commit*
+- [python-claude-flow/demo.py](file://python-claude-flow/demo.py) - *Added in recent commit*
 
 ## Building Full-Stack Applications
 

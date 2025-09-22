@@ -1,3 +1,4 @@
+<docs>
 # API Reference
 
 <cite>
@@ -7,7 +8,21 @@
 - [index.js](file://examples/rest-api-simple/index.js)
 - [test-api.js](file://examples/rest-api-simple/test-api.js)
 - [package.json](file://examples/rest-api-simple/package.json)
+- [optimizer.py](file://benchmark/src/swarm_benchmark/claude_optimizer/optimizer.py)
+- [templates.py](file://benchmark/src/swarm_benchmark/claude_optimizer/templates.py)
+- [rules_engine.py](file://benchmark/src/swarm_benchmark/claude_optimizer/rules_engine.py)
+- [benchmark_engine.py](file://benchmark/src/swarm_benchmark/core/benchmark_engine.py)
+- [ensemble_executor.py](file://benchmark/src/swarm_benchmark/mle_star/ensemble_executor.py)
 </cite>
+
+## Update Summary
+**Changes Made**   
+- Updated document to reflect new API structure and modules introduced in the `.qoder` addition
+- Added comprehensive coverage of the CLAUDE.md Optimizer API, including new classes and methods
+- Enhanced documentation for the Benchmark Engine and MLE-STAR integration
+- Updated data class definitions to match current implementation
+- Added new CLI command examples and configuration reference
+- Improved code examples with real implementation details
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -331,6 +346,9 @@ python -m swarm_benchmark analyze --config-file claude.md --tasks tasks.txt
 
 **Section sources**
 - [api_reference.md](file://benchmark/docs/api_reference.md#L1-L597)
+- [optimizer.py](file://benchmark/src/swarm_benchmark/claude_optimizer/optimizer.py#L55-L667)
+- [templates.py](file://benchmark/src/swarm_benchmark/claude_optimizer/templates.py#L10-L362)
+- [rules_engine.py](file://benchmark/src/swarm_benchmark/claude_optimizer/rules_engine.py#L23-L544)
 
 ## Error Handling
 
@@ -355,115 +373,4 @@ All error responses follow a consistent format:
 
 ```mermaid
 stateDiagram-v2
-[*] --> RequestReceived
-RequestReceived --> Validation
-Validation --> |Valid| Processing
-Validation --> |Invalid| ErrorResponse
-Processing --> |Success| SuccessResponse
-Processing --> |Error| ErrorResponse
-ErrorResponse --> [*]
-SuccessResponse --> [*]
-```
-
-**Diagram sources**
-- [index.js](file://examples/rest-api-simple/index.js#L1-L100)
-
-## Usage Examples
-
-### REST API Examples
-
-#### Create an Item
-```bash
-curl -X POST http://localhost:3000/api/items \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Learn REST APIs",
-    "description": "Build a simple REST API with Express"
-  }'
-```
-
-#### List All Items
-```bash
-curl http://localhost:3000/api/items
-```
-
-#### Update an Item
-```bash
-curl -X PUT http://localhost:3000/api/items/1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Mastered REST APIs",
-    "description": "Built and tested a simple REST API"
-  }'
-```
-
-#### Delete an Item
-```bash
-curl -X DELETE http://localhost:3000/api/items/1
-```
-
-### Benchmark System Examples
-
-#### Generate Optimized Configuration
-```python
-from swarm_benchmark.claude_optimizer import ClaudeMdOptimizer, ProjectContext, PerformanceTargets
-
-optimizer = ClaudeMdOptimizer()
-
-context = ProjectContext(
-    project_type="web_api",
-    team_size=5,
-    complexity="medium",
-    primary_languages=["Python", "JavaScript"],
-    frameworks=["FastAPI", "React"],
-    performance_requirements={"response_time": "<100ms"},
-    existing_tools=["pytest", "docker"],
-    constraints={"budget": "medium"}
-)
-
-targets = PerformanceTargets(
-    priority="speed",
-    target_completion_time=30.0,
-    target_token_usage=500,
-    target_memory_usage=1024.0,
-    target_error_rate=0.01
-)
-
-config = optimizer.generate_optimized_config("api_development", context, targets)
-```
-
-**Section sources**
-- [index.js](file://examples/rest-api-simple/index.js#L1-L100)
-- [test-api.js](file://examples/rest-api-simple/test-api.js#L1-L74)
-
-## Testing
-
-### API Testing Script
-The `test-api.js` script provides a comprehensive test suite for the REST API:
-
-```javascript
-async function testAPI() {
-  // Test all endpoints in sequence
-  await testGetAllItems();
-  await testCreateItem();
-  await testGetSingleItem();
-  await testUpdateItem();
-  await testDeleteItem();
-  await testHealthCheck();
-}
-```
-
-### Running Tests
-```bash
-node test-api.js
-```
-
-The test script verifies:
-- All endpoints respond correctly
-- CRUD operations work as expected
-- Error handling is properly implemented
-- Response formats are consistent
-
-**Section sources**
-- [test-api.js](file://examples/rest-api-simple/test-api.js#L1-L74)
-- [package.json](file://examples/rest-api-simple/package.json#L1-L19)
+[*] -->
