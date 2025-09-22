@@ -1,0 +1,114 @@
+# Observability Configuration Example
+# This file demonstrates the configuration options for the Claude-Flow
+# distributed tracing and logging system
+
+# Tracing Configuration
+tracing:
+  # Service identification
+  service_name: "claude-flow"
+  service_version: "1.0.0"
+  environment: "production"  # development, staging, production
+  
+  # Sampling configuration
+  sample_rate: 1.0  # 0.0 to 1.0, 1.0 = trace all requests
+  
+  # Export configuration
+  console_export: false  # Export to console (development only)
+  
+  # Jaeger exporter (recommended for distributed tracing)
+  jaeger:
+    endpoint: "localhost:14268"  # Jaeger collector endpoint
+    # agent_host: "localhost"
+    # agent_port: 6831
+  
+  # OTLP exporter (OpenTelemetry Protocol)
+  otlp:
+    endpoint: "http://localhost:4317"  # OTLP gRPC endpoint
+    # endpoint: "http://localhost:4318/v1/traces"  # OTLP HTTP endpoint
+  
+  # Automatic instrumentation
+  auto_instrument: true
+  
+  # Excluded URLs for instrumentation
+  excluded_urls:
+    - "/health"
+    - "/metrics"
+    - "/favicon.ico"
+
+# Logging Configuration
+logging:
+  # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  level: "INFO"
+  
+  # Log format (json, text)
+  format: "json"
+  
+  # File logging
+  file: "logs/claude-flow.log"
+  max_file_size: 10485760  # 10MB
+  backup_count: 5
+  
+  # Structured logging options
+  include_trace_info: true
+  correlation_id: true
+  
+  # Log rotation
+  rotate_daily: true
+  
+  # Console logging
+  console:
+    enabled: true
+    level: "INFO"
+    format: "text"  # json or text for console
+
+# Monitoring Integration
+monitoring:
+  # Health checks
+  health_checks:
+    enabled: true
+    endpoint: "/health"
+    
+  # Metrics
+  metrics:
+    enabled: true
+    endpoint: "/metrics"
+    include_trace_metrics: true
+    
+  # Alerting
+  alerts:
+    enabled: true
+    error_rate_threshold: 0.05  # 5% error rate
+    latency_threshold: 1000  # milliseconds
+    
+# Development Configuration Override
+development:
+  tracing:
+    console_export: true
+    sample_rate: 1.0
+    auto_instrument: true
+    jaeger:
+      endpoint: "localhost:14268"
+  
+  logging:
+    level: "DEBUG"
+    format: "text"
+    console:
+      enabled: true
+      level: "DEBUG"
+      format: "text"
+
+# Production Configuration Override  
+production:
+  tracing:
+    console_export: false
+    sample_rate: 0.1  # Sample 10% in production
+    auto_instrument: true
+    otlp:
+      endpoint: "http://jaeger-collector:4317"
+      
+  logging:
+    level: "INFO"
+    format: "json"
+    file: "/var/log/claude-flow/application.log"
+    console:
+      enabled: false

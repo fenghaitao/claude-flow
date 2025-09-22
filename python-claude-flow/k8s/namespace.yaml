@@ -1,0 +1,71 @@
+# Kubernetes namespace for Claude-Flow
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: claude-flow
+  labels:
+    app.kubernetes.io/name: claude-flow
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: platform
+    environment: production
+  annotations:
+    kubernetes.io/managed-by: "claude-flow-operator"
+    description: "AI Agent Orchestration Platform"
+---
+# Resource quota for the namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: claude-flow-quota
+  namespace: claude-flow
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    pods: "50"
+    services: "20"
+    persistentvolumeclaims: "10"
+    secrets: "20"
+    configmaps: "30"
+---
+# Network policy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: claude-flow-network-policy
+  namespace: claude-flow
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: claude-flow
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: claude-flow
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80

@@ -1,0 +1,159 @@
+# Claude-Flow Default Configuration
+# This file contains default settings for all environments
+
+app_name: "Claude-Flow"
+version: "2.0.0-alpha.90"
+environment: "development"
+debug: false
+
+# Core directories
+data_dir: "./data"
+config_dir: "./config"
+logs_dir: "./logs"
+temp_dir: "./temp"
+
+# Feature flags
+experimental_features: false
+telemetry_enabled: true
+auto_update: false
+
+# Database configuration
+database:
+  backend: "sqlite"
+  url: "sqlite:///claude_flow.db"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+
+# Redis configuration
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  pool_size: 10
+  socket_timeout: 5
+  health_check_interval: 30
+
+# Claude AI configuration
+claude:
+  api_key: "${CLAUDE_API_KEY:-sk-placeholder}"
+  api_base: "https://api.anthropic.com"
+  model: "claude-3-sonnet-20240229"
+  max_tokens: 4096
+  temperature: 0.7
+  timeout: 60
+  max_retries: 3
+  retry_delay: 1.0
+  rate_limit_requests: 50
+  rate_limit_tokens: 100000
+
+# GitHub integration
+github:
+  token: "${GITHUB_TOKEN:-}"
+  api_base: "https://api.github.com"
+  timeout: 30
+  max_retries: 3
+  rate_limit: 5000
+
+# MCP configuration
+mcp:
+  enabled: true
+  servers: []
+  discovery_timeout: 10
+  execution_timeout: 300
+  max_concurrent_tools: 10
+  retry_attempts: 3
+
+# Agent system
+agents:
+  max_agents: 50
+  default_timeout: 300
+  heartbeat_interval: 30
+  resource_check_interval: 60
+  max_memory_mb: 512
+  max_cpu_percent: 80.0
+  spawn_timeout: 30
+  termination_timeout: 10
+
+# Swarm coordination
+swarm:
+  enabled: true
+  max_swarm_size: 20
+  coordination_timeout: 120
+  consensus_threshold: 0.6
+  task_distribution_strategy: "load_balanced"
+  failure_tolerance: 2
+
+# Memory system
+memory:
+  enabled: true
+  default_ttl: 86400
+  max_entries: 100000
+  cleanup_interval: 3600
+  compression_enabled: true
+  semantic_search_enabled: true
+  embedding_model: "all-MiniLM-L6-v2"
+  similarity_threshold: 0.7
+
+# Neural networks
+neural:
+  enabled: true
+  device: "auto"
+  model_cache_dir: "./models"
+  training_enabled: true
+  auto_train: false
+  batch_size: 32
+  learning_rate: 0.001
+  max_epochs: 100
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics_enabled: true
+  prometheus_enabled: true
+  prometheus_port: 9090
+  health_check_enabled: true
+  health_check_port: 8080
+  metrics_retention_days: 30
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_enabled: true
+  file_path: "./logs/claude_flow.log"
+  file_max_bytes: 10485760  # 10MB
+  file_backup_count: 5
+  console_enabled: true
+  structured_logging: true
+
+# Security
+security:
+  encryption_enabled: true
+  api_key_rotation_days: 90
+  session_timeout: 3600
+  max_login_attempts: 5
+  password_min_length: 8
+  require_2fa: false
+
+# Performance
+performance:
+  max_workers: 4
+  queue_size: 1000
+  batch_processing: true
+  cache_enabled: true
+  cache_ttl: 3600
+  profiling_enabled: false
+  gc_threshold: 700
+
+# Deployment
+deployment:
+  mode: "standalone"
+  docker_enabled: false
+  kubernetes_enabled: false
+  scaling_enabled: false
+  min_replicas: 1
+  max_replicas: 10
+  health_check_path: "/health"
+  readiness_probe_delay: 30
+  liveness_probe_delay: 60

@@ -1,0 +1,355 @@
+# Docker Compose configuration for Claude-Flow development environment
+# Provides all necessary services for local development and testing
+
+version: '3.8'
+
+services:
+  # ==============================================================================
+  # Claude-Flow Main Application
+  # ==============================================================================
+  claude-flow:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: claude-flow-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=postgresql://claudeflow:claudeflow123@postgres:5432/claudeflow
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JAEGER_ENDPOINT=jaeger:14268
+      - PROMETHEUS_GATEWAY=pushgateway:9091
+    volumes:
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./models:/app/models
+    depends_on:
+      - postgres
+      - redis
+      - jaeger
+    networks:
+      - claude-flow-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==============================================================================
+  # AI Worker (GPU-enabled for ML workloads)
+  # ==============================================================================
+  ai-worker:
+    build:
+      context: .
+      target: ai-worker
+      dockerfile: Dockerfile
+    container_name: claude-flow-ai-worker
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=development
+      - CUDA_VISIBLE_DEVICES=all
+      - TRANSFORMERS_CACHE=/app/cache/transformers
+      - HF_HOME=/app/cache/huggingface
+    volumes:
+      - ./models:/app/models
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+    depends_on:
+      - claude-flow
+    networks:
+      - claude-flow-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==============================================================================
+  # Database Services
+  # ==============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: claude-flow-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=claudeflow
+      - POSTGRES_USER=claudeflow
+      - POSTGRES_PASSWORD=claudeflow123
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - claude-flow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U claudeflow -d claudeflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: claude-flow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass claudeflow123
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - claude-flow-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ==============================================================================
+  # Monitoring and Observability
+  # ==============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: claude-flow-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - claude-flow-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: claude-flow-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - claude-flow-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: claude-flow-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Jaeger collector HTTP
+      - "14250:14250"  # Jaeger collector gRPC
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - claude-flow-network
+
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: claude-flow-pushgateway
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    networks:
+      - claude-flow-network
+
+  # ==============================================================================
+  # Message Queue (for distributed task processing)
+  # ==============================================================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: claude-flow-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=claudeflow
+      - RABBITMQ_DEFAULT_PASS=claudeflow123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - claude-flow-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==============================================================================
+  # Reverse Proxy and Load Balancer
+  # ==============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: claude-flow-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    depends_on:
+      - claude-flow
+    networks:
+      - claude-flow-network
+
+  # ==============================================================================
+  # Development Tools
+  # ==============================================================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: claude-flow-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+    networks:
+      - claude-flow-network
+
+  # Jupyter notebook for development and experimentation
+  jupyter:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: claude-flow-jupyter
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=claude-flow-dev
+    volumes:
+      - ./src:/app/src
+      - ./notebooks:/app/notebooks
+      - ./data:/app/data
+      - ./models:/app/models
+    command: >
+      jupyter lab 
+      --ip=0.0.0.0 
+      --port=8888 
+      --no-browser 
+      --allow-root 
+      --notebook-dir=/app
+    networks:
+      - claude-flow-network
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: claude-flow-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@claude-flow.dev
+      - PGADMIN_DEFAULT_PASSWORD=admin123
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - claude-flow-network
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: claude-flow-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:claudeflow123
+    depends_on:
+      - redis
+    networks:
+      - claude-flow-network
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  claude-flow-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ==============================================================================
+# Persistent Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ==============================================================================
+# Environment Variables Template
+# ==============================================================================
+# Create a .env file with the following variables:
+#
+# # Claude AI API
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
+#
+# # OpenAI API (optional)
+# OPENAI_API_KEY=your_openai_api_key_here
+#
+# # Database passwords (change in production)
+# POSTGRES_PASSWORD=claudeflow123
+# REDIS_PASSWORD=claudeflow123
+# RABBITMQ_PASSWORD=claudeflow123
+#
+# # Monitoring
+# GRAFANA_ADMIN_PASSWORD=admin123
+#
+# # Development settings
+# DEBUG=true
+# LOG_LEVEL=DEBUG
+# ENVIRONMENT=development

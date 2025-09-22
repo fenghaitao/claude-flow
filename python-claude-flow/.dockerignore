@@ -1,0 +1,182 @@
+# Docker ignore file for Claude-Flow
+# Excludes unnecessary files from Docker build context
+
+# Documentation and markdown files
+*.md
+docs/
+.readthedocs.yml
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing and coverage
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+.coverage.*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# Logs
+*.log
+logs/
+log/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+.cache/
+cache/
+tmp/
+temp/
+
+# Config files with secrets
+config/secrets.yaml
+config/production.yaml
+config/local.yaml
+.env.local
+.env.production
+.env.secrets
+
+# Development and build artifacts
+node_modules/
+.npm
+.eslintcache
+*.tgz
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Large model files (should be downloaded at runtime)
+models/
+*.bin
+*.safetensors
+*.onnx
+*.pkl
+*.h5
+
+# Data directories
+data/
+datasets/
+experiments/
+outputs/
+
+# Temporary Docker files
+Dockerfile.dev
+docker-compose.override.yml
+.dockerignore.bak
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Benchmarks and performance tests
+benchmark/
+benchmarks/
+perf/
+performance/
+
+# Local development
+local/
+scratch/
+playground/
+
+# Monitoring and observability data
+prometheus/
+grafana/
+jaeger/
+monitoring-data/
+
+# Dependencies that should be installed fresh
+requirements-dev.txt
+requirements-local.txt
+
+# Include patterns (override excludes)
+!src/
+!config/config.example.yaml
+!config/observability.example.yaml
+!scripts/
+!README.md
+!LICENSE
+!requirements.txt
+!requirements-test.txt

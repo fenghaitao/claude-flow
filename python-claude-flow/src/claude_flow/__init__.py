@@ -12,11 +12,18 @@ __license__ = "MIT"
 from .core.config_simple import Config, config
 from .core.event_bus_simple import EventBus, Event, EventType
 
-# For now, we'll import other modules when they're implemented
-# from .agents.agent_manager import AgentManager
-# from .swarm.swarm_coordinator import SwarmCoordinator
-# from .memory.memory_manager import MemoryManager
-# from .mcp.mcp_client import MCPClient
+# Enterprise modules (lazy imports to avoid circular dependencies)
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .agents import AgentManager, QueenAgent
+    from .swarm import SwarmCoordinator
+    from .memory import MemoryManager
+    from .neural import NeuralEngine
+    from .integrations import ClaudeClient
+    from .monitoring import MetricsCollector
+    from .deployment import DockerManager
+    from .mcp.mcp_client import MCPClient
 
 __all__ = [
     "Config",
@@ -24,8 +31,44 @@ __all__ = [
     "EventBus",
     "Event", 
     "EventType",
-    # "AgentManager",
-    # "SwarmCoordinator",
-    # "MemoryManager",
-    # "MCPClient",
+    "AgentManager",
+    "QueenAgent",
+    "SwarmCoordinator",
+    "MemoryManager",
+    "NeuralEngine",
+    "ClaudeClient",
+    "MetricsCollector",
+    "DockerManager",
+    "MCPClient",
 ]
+
+# Lazy imports to avoid circular dependencies
+def __getattr__(name: str):
+    if name == "AgentManager":
+        from .agents import AgentManager
+        return AgentManager
+    elif name == "QueenAgent":
+        from .agents import QueenAgent
+        return QueenAgent
+    elif name == "SwarmCoordinator":
+        from .swarm import SwarmCoordinator
+        return SwarmCoordinator
+    elif name == "MemoryManager":
+        from .memory import MemoryManager
+        return MemoryManager
+    elif name == "NeuralEngine":
+        from .neural import NeuralEngine
+        return NeuralEngine
+    elif name == "ClaudeClient":
+        from .integrations import ClaudeClient
+        return ClaudeClient
+    elif name == "MetricsCollector":
+        from .monitoring import MetricsCollector
+        return MetricsCollector
+    elif name == "DockerManager":
+        from .deployment import DockerManager
+        return DockerManager
+    elif name == "MCPClient":
+        from .mcp.mcp_client import MCPClient
+        return MCPClient
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

@@ -1,0 +1,46 @@
+# Development Environment Configuration
+# Override settings for development
+
+environment: "development"
+debug: true
+
+# Enable experimental features in development
+experimental_features: true
+
+# Development database (SQLite for simplicity)
+database:
+  backend: "sqlite"
+  url: "sqlite:///claude_flow_dev.db"
+
+# Development logging
+logging:
+  level: "DEBUG"
+  console_enabled: true
+  structured_logging: false
+
+# Enable hot reload and development features
+performance:
+  profiling_enabled: true
+  cache_enabled: false  # Disable caching for development
+
+# Neural networks - reduced settings for development
+neural:
+  auto_train: false
+  batch_size: 16
+  max_epochs: 10
+
+# Monitoring - reduced for development
+monitoring:
+  prometheus_enabled: false
+  metrics_retention_days: 7
+
+# Security - relaxed for development
+security:
+  encryption_enabled: false
+  session_timeout: 7200  # 2 hours
+  require_2fa: false
+
+# Agents - smaller limits for development
+agents:
+  max_agents: 10
+  max_memory_mb: 256

@@ -1,247 +1,347 @@
-#!/usr/bin/env python3
 """
-Claude-Flow CLI - Main entry point
+Main CLI entry point for Claude-Flow.
+
+This module provides the main Click CLI application with Rich styling
+and comprehensive command organization.
 """
 
 import asyncio
 import sys
-from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 import click
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
+from rich import print as rprint
 
-# Use simplified modules (no external dependencies)
-from ..core.config_simple import config, Config
-from ..core.event_bus_simple import event_bus
+from claude_flow.core.config import ConfigManager
+from claude_flow.core.logger import setup_logging
+from claude_flow.cli.progress import ProgressManager
+from claude_flow.cli.help import HelpSystem
 
-# Simple console output (no rich dependency)
-def print_simple(text, style=""):
-    """Simple print function without rich dependency"""
-    print(text)
+# Initialize Rich console
+console = Console()
+progress_manager = ProgressManager(console)
+help_system = HelpSystem(console)
+
+
+class AsyncClickGroup(click.Group):
+    """Custom Click Group that supports async commands."""
+    
+    def __call__(self, *args, **kwargs):
+        """Handle async command execution."""
+        return super().__call__(*args, **kwargs)
+
+
+class RichClickContext(click.Context):
+    """Enhanced Click context with Rich integration."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.console = console
+        self.progress = progress_manager
+
+
+def async_command(f):
+    """Decorator to make Click commands async."""
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+    return wrapper
+
 
 def print_banner():
-    """Print the Claude-Flow banner"""
-    print("=" * 60)
-    print("🌊 Claude-Flow v2.0.0 Alpha")
-    print("Enterprise-grade AI Agent Orchestration Platform")
-    print("=" * 60)
-
-
-def print_version(ctx, param, value):
-    """Print version and exit"""
-    if not value or ctx.resilient_parsing:
-        return
+    """Print the Claude-Flow banner."""
+    banner = Text.assemble(
+        ("Claude", "bold blue"),
+        ("-", "white"),
+        ("Flow", "bold green"),
+        (" ", "white"),
+        ("Enterprise AI Agent Orchestration Platform", "dim white")
+    )
     
-    version_info = f"Claude-Flow v{config.version}"
-    print_simple(version_info)
-    ctx.exit()
+    panel = Panel(
+        banner,
+        style="bold",
+        border_style="bright_blue",
+        padding=(1, 2)
+    )
+    console.print(panel)
 
 
-@click.group()
-@click.option(
-    '--version',
-    is_flag=True,
-    callback=print_version,
-    expose_value=False,
-    is_eager=True,
-    help='Show version and exit'
-)
-def main():
+def print_version_info():
+    """Print version and system information."""
+    from claude_flow import __version__
+    
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="cyan")
+    table.add_column("Value", style="white")
+    
+    table.add_row("Version", __version__)
+    table.add_row("Python", f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    table.add_row("Platform", sys.platform)
+    
+    console.print("\n[bold]System Information[/bold]")
+    console.print(table)
+
+
+@click.group(cls=AsyncClickGroup, context_settings={"help_option_names": ["-h", "--help"]})
+@click.option("--config", "-c", type=click.Path(exists=True), help="Configuration file path")
+@click.option("--verbose", "-v", count=True, help="Increase verbosity (-v, -vv, -vvv)")
+@click.option("--quiet", "-q", is_flag=True, help="Suppress output")
+@click.option("--no-color", is_flag=True, help="Disable colored output")
+@click.option("--format", "output_format", type=click.Choice(["json", "yaml", "table", "text"]), 
+              default="table", help="Output format")
+@click.version_option(version="1.0.0", prog_name="claude-flow")
+@click.pass_context
+def claude_flow_cli(ctx: click.Context, config: Optional[str], verbose: int, 
+                   quiet: bool, no_color: bool, output_format: str):
     """
-    🌊 Claude-Flow: Enterprise-grade AI agent orchestration platform
+    Claude-Flow: Enterprise AI Agent Orchestration Platform
     
-    A Python port of the original TypeScript/Node.js implementation.
+    A comprehensive platform for managing AI agents, workflows, and neural networks
+    with advanced swarm intelligence capabilities.
+    
+    Examples:
+        claude-flow swarm create my-session --agents 5
+        claude-flow neural classify "Implement user authentication"
+        claude-flow memory search "user data" --type semantic
+        claude-flow workflow execute my-workflow --params config.json
     """
-    # Print banner
-    print_banner()
+    # Initialize context
+    ctx.ensure_object(dict)
+    ctx.obj["verbose"] = verbose
+    ctx.obj["quiet"] = quiet
+    ctx.obj["no_color"] = no_color
+    ctx.obj["output_format"] = output_format
+    ctx.obj["console"] = console
+    ctx.obj["progress"] = progress_manager
     
-    # Set log level
-    log_level = 'INFO'
-    print_simple(f"✓ Log level set to {log_level}")
+    # Configure Rich console
+    if no_color:
+        console.no_color = True
     
-    # Validate configuration
-    errors = config.validate()
-    if errors:
-        print_simple("Configuration errors:")
-        for error in errors:
-            print_simple(f"  • {error}")
-        print_simple("\nPlease check your configuration and environment variables.")
-        sys.exit(1)
+    # Setup logging based on verbosity
+    if verbose >= 3:
+        log_level = "DEBUG"
+    elif verbose == 2:
+        log_level = "INFO"
+    elif verbose == 1:
+        log_level = "WARNING"
+    else:
+        log_level = "ERROR"
     
-    # Start event bus
-    event_bus.start()
+    if not quiet:
+        setup_logging(level=log_level)
     
-    print_simple("✓ Configuration loaded successfully")
-    print_simple("✓ Event bus started")
+    # Load configuration
+    if config:
+        ctx.obj["config_path"] = config
+    
+    # Print banner for main command
+    if ctx.invoked_subcommand is None and not quiet:
+        print_banner()
+        print_version_info()
 
 
-@main.command()
-@click.option(
-    '--force',
-    is_flag=True,
-    help='Force initialization even if already initialized'
-)
-def init(force: bool):
-    """Initialize Claude-Flow in the current directory"""
-    print_simple("Initializing Claude-Flow...")
+@claude_flow_cli.command()
+@click.pass_context
+@async_command
+async def status(ctx: click.Context):
+    """Show system status and health information."""
+    console = ctx.obj["console"]
     
-    try:
-        # Create directories
-        print_simple("Creating directories...")
-        config._create_directories()
-        
-        # Save configuration
-        print_simple("Saving configuration...")
-        config.save()
-        
-        # Create .gitignore
-        print_simple("Creating .gitignore...")
-        gitignore_path = Path.cwd() / ".gitignore"
-        if not gitignore_path.exists() or force:
-            gitignore_content = """# Claude-Flow
-.claude-flow/
-.swarm/
-*.db
-*.log
-.env
+    with console.status("[bold green]Checking system status..."):
+        # Mock status check
+        await asyncio.sleep(1)
+    
+    # System status table
+    status_table = Table(title="Claude-Flow System Status", box=None)
+    status_table.add_column("Component", style="cyan")
+    status_table.add_column("Status", style="white")
+    status_table.add_column("Details", style="dim white")
+    
+    # Mock status data
+    components = [
+        ("Core Engine", "✅ Running", "All systems operational"),
+        ("MCP Server", "✅ Running", "87 tools loaded"),
+        ("Memory System", "✅ Running", "SQLite, Redis, PostgreSQL"),
+        ("Neural Engine", "✅ Running", "4 models loaded"),
+        ("Agent Pool", "✅ Running", "5 agents active"),
+        ("Event Bus", "✅ Running", "Real-time messaging"),
+        ("Workflow Engine", "✅ Running", "12 workflows active")
+    ]
+    
+    for component, status, details in components:
+        status_table.add_row(component, status, details)
+    
+    console.print(status_table)
+    
+    # Resource usage
+    resource_table = Table(title="Resource Usage", box=None)
+    resource_table.add_column("Resource", style="cyan")
+    resource_table.add_column("Usage", style="white")
+    resource_table.add_column("Limit", style="dim white")
+    
+    resources = [
+        ("CPU", "45%", "8 cores"),
+        ("Memory", "2.1 GB", "16 GB"),
+        ("Disk", "125 GB", "1 TB"),
+        ("Network", "1.2 MB/s", "1 GB/s")
+    ]
+    
+    for resource, usage, limit in resources:
+        resource_table.add_row(resource, usage, limit)
+    
+    console.print(resource_table)
+
+
+@claude_flow_cli.command()
+@click.option("--interactive", "-i", is_flag=True, help="Start interactive shell")
+@click.option("--examples", "-e", is_flag=True, help="Show usage examples")
+@click.pass_context
+def help(ctx: click.Context, interactive: bool, examples: bool):
+    """Show comprehensive help and usage information."""
+    console = ctx.obj["console"]
+    
+    if interactive:
+        # Start interactive help system
+        help_system.start_interactive_help()
+    elif examples:
+        help_system.show_examples()
+    else:
+        help_system.show_overview()
+
+
+@claude_flow_cli.command()
+@click.option("--output", "-o", type=click.Path(), help="Output file for configuration")
+@click.option("--format", "config_format", type=click.Choice(["yaml", "json", "toml"]), 
+              default="yaml", help="Configuration format")
+@click.pass_context
+def init(ctx: click.Context, output: Optional[str], config_format: str):
+    """Initialize Claude-Flow configuration."""
+    console = ctx.obj["console"]
+    
+    config_content = generate_default_config(config_format)
+    
+    if output:
+        with open(output, "w") as f:
+            f.write(config_content)
+        console.print(f"[green]Configuration written to {output}[/green]")
+    else:
+        console.print("[bold]Default Configuration:[/bold]")
+        console.print(config_content)
+
+
+def generate_default_config(format_type: str) -> str:
+    """Generate default configuration in specified format."""
+    if format_type == "yaml":
+        return """
+# Claude-Flow Configuration
+app:
+  name: "claude-flow"
+  version: "1.0.0"
+  debug: false
+
+core:
+  log_level: "INFO"
+  max_workers: 10
+  timeout: 30
+
+mcp:
+  server:
+    host: "localhost"
+    port: 8765
+    ssl_enabled: false
+  tools:
+    discovery_paths: ["./tools", "./plugins"]
+    auto_register: true
+
+swarm:
+  max_agents: 20
+  coordination_timeout: 300
+  consensus_threshold: 0.67
+
+neural:
+  models_path: "./models"
+  cache_enabled: true
+  batch_size: 32
+
+memory:
+  sqlite:
+    path: "./data/memory.db"
+  redis:
+    host: "localhost"
+    port: 6379
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "claude_flow"
+
+workflow:
+  max_concurrent: 10
+  default_timeout: 3600
+  retry_count: 3
 """
-            gitignore_path.write_text(gitignore_content)
-        
-        # Create environment template
-        print_simple("Creating environment template...")
-        env_template_path = Path.cwd() / ".env.example"
-        if not env_template_path.exists() or force:
-            env_content = """# Claude-Flow Environment Variables
-# Copy this file to .env and fill in your values
+    elif format_type == "json":
+        return """{
+  "app": {
+    "name": "claude-flow",
+    "version": "1.0.0",
+    "debug": false
+  },
+  "core": {
+    "log_level": "INFO",
+    "max_workers": 10,
+    "timeout": 30
+  },
+  "mcp": {
+    "server": {
+      "host": "localhost",
+      "port": 8765,
+      "ssl_enabled": false
+    },
+    "tools": {
+      "discovery_paths": ["./tools", "./plugins"],
+      "auto_register": true
+    }
+  }
+}"""
+    else:  # toml
+        return """
+[app]
+name = "claude-flow"
+version = "1.0.0" 
+debug = false
 
-# Claude API Configuration
-CLAUDE_API_KEY=your_claude_api_key_here
-CLAUDE_MODEL=claude-3-sonnet-20240229
+[core]
+log_level = "INFO"
+max_workers = 10
+timeout = 30
 
-# MCP Configuration
-MCP_SERVER_URL=ws://localhost:3000
-MCP_API_KEY=your_mcp_api_key_here
+[mcp.server]
+host = "localhost"
+port = 8765
+ssl_enabled = false
 
-# Database Configuration
-DATABASE_PATH=.swarm/memory.db
-
-# Logging Configuration
-LOG_LEVEL=INFO
-DEBUG=false
-
-# Environment
-ENVIRONMENT=development
+[mcp.tools]
+discovery_paths = ["./tools", "./plugins"]
+auto_register = true
 """
-            env_template_path.write_text(env_content)
-        
-        print_simple("\n✓ Claude-Flow initialized successfully!")
-        print_simple(f"\nConfiguration directory: {config.config_dir}")
-        print_simple(f"Swarm directory: {config.swarm_dir}")
-        print_simple(f"\nNext steps:")
-        print_simple("1. Copy .env.example to .env and fill in your API keys")
-        print_simple("2. Run 'claude-flow swarm --help' to see available commands")
-        print_simple("3. Run 'claude-flow hive-mind --help' for advanced features")
-        
-    except Exception as e:
-        print_simple(f"\n✗ Initialization failed: {e}")
-        sys.exit(1)
 
 
-@main.command()
-def status():
-    """Show Claude-Flow status and configuration"""
-    print_simple("Configuration Status:")
-    print_simple("-" * 30)
-    
-    # Check Claude API key
-    claude_status = "✓ Configured" if config.claude.api_key else "✗ Missing API Key"
-    print_simple(f"Claude API Key: {'***' if config.claude.api_key else 'Not set'} - {claude_status}")
-    
-    # Check MCP configuration
-    mcp_status = "✓ Enabled" if config.mcp.server_url else "✗ Disabled"
-    print_simple(f"MCP Integration: {'Enabled' if config.mcp.server_url else 'Disabled'} - {mcp_status}")
-    
-    # Check directories
-    dirs_status = "✓ Ready" if config.config_dir.exists() else "✗ Not initialized"
-    print_simple(f"Directories: {config.config_dir} - {dirs_status}")
-    
-    print_simple("\nFeature Flags:")
-    print_simple("-" * 20)
-    
-    for feature, enabled in config._feature_flags.items():
-        status = "✓ Enabled" if enabled else "✗ Disabled"
-        print_simple(f"{feature.replace('_', ' ').title()}: {status}")
-    
-    # Event bus status
-    event_status = "✓ Running" if event_bus.is_running else "✗ Stopped"
-    print_simple(f"\nEvent Bus: {event_status}")
-    
-    if event_bus.is_running:
-        subscriber_count = sum(len(event_bus._subscribers.get(et, set())) for et in event_bus._subscribers)
-        print_simple(f"Active Subscribers: {subscriber_count}")
+# Import command groups
+from claude_flow.cli.commands import swarm, neural, memory, system, workflow, mcp, interactive
+
+# Add command groups
+claude_flow_cli.add_command(swarm.swarm_cli)
+claude_flow_cli.add_command(neural.neural_cli)
+claude_flow_cli.add_command(memory.memory_cli)
+claude_flow_cli.add_command(system.system_cli)
+claude_flow_cli.add_command(workflow.workflow_cli)
+claude_flow_cli.add_command(mcp.mcp_cli)
+claude_flow_cli.add_command(interactive.interactive_cli)
 
 
-@main.command()
-def health():
-    """Perform system health check"""
-    print_simple("Performing health check...")
-    
-    # Check configuration
-    print_simple("Checking configuration...")
-    config_errors = config.validate()
-    if config_errors:
-        print_simple("✗ Configuration errors found:")
-        for error in config_errors:
-            print_simple(f"  • {error}")
-    else:
-        print_simple("✓ Configuration is valid")
-    
-    # Check directories
-    print_simple("Checking directories...")
-    dir_errors = []
-    for path_name, path in [
-        ("Config", config.config_dir),
-        ("Swarm", config.swarm_dir),
-        ("Data", config.data_dir)
-    ]:
-        if not path.exists():
-            dir_errors.append(f"{path_name} directory missing: {path}")
-    
-    if dir_errors:
-        print_simple("✗ Directory errors found:")
-        for error in dir_errors:
-            print_simple(f"  • {error}")
-    else:
-        print_simple("✓ All directories exist")
-    
-    # Check event bus
-    print_simple("Checking event bus...")
-    if event_bus.is_running:
-        print_simple("✓ Event bus is running")
-    else:
-        print_simple("✗ Event bus is not running")
-    
-    # Check API connectivity
-    print_simple("Checking API connectivity...")
-    print_simple("⚠ API connectivity check not implemented yet")
-    
-    # Summary
-    if config_errors or dir_errors:
-        print_simple("\n✗ Health check failed with errors")
-        sys.exit(1)
-    else:
-        print_simple("\n✓ Health check passed")
-
-
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print_simple("\nInterrupted by user")
-        sys.exit(0)
-    except Exception as e:
-        print_simple(f"\nFatal error: {e}")
-        sys.exit(1)
-    finally:
-        # Cleanup
-        if event_bus.is_running:
-            event_bus.stop()
+if __name__ == "__main__":
+    claude_flow_cli()

@@ -1,0 +1,1 @@
+"""Memory repositories module - Data access layer"""
